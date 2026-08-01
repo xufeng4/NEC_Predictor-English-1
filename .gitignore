@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Local logs and history
+server.log
+.Rhistory
+
+# Accidental nested empty folder
+NEC_Predictor(English)/

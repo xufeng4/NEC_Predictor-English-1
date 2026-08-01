@@ -1,0 +1,220 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEC Risk Prediction System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>Neonatal Necrotizing Enterocolitis Risk Prediction</h1>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <div class="input-panel">
+                <form id="predictionForm">
+                    <!-- Clinical Features -->
+                    <div class="section">
+                        <h2 class="section-title"><span class="icon">🩺</span> Clinical Features</h2>
+                        <div class="feature-grid">
+                            {% for feat in clinical_features %}
+                            <div class="form-group">
+                                <label for="f{{ loop.index0 }}">
+                                    {% if labels.clinical and labels.clinical.get(feat) %}
+                                        {{ labels.clinical[feat] }}
+                                    {% else %}
+                                        {{ feat }}
+                                    {% endif %}
+                                </label>
+                                <input type="number" id="f{{ loop.index0 }}" name="{{ feat }}" step="any"
+                                    value="{{ defaults.get(feat, '') if defaults else '' }}"
+                                    placeholder="Required">
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Laboratory Features -->
+                    <div class="section">
+                        <h2 class="section-title"><span class="icon">🔬</span> Laboratory Features</h2>
+                        <div class="feature-grid">
+                            {% for feat in laboratory_features %}
+                            <div class="form-group">
+                                <label for="f{{ loop.index0 + clinical_features|length }}">
+                                    {% if labels.laboratory and labels.laboratory.get(feat) %}
+                                        {{ labels.laboratory[feat] }}
+                                    {% else %}
+                                        {{ feat }}
+                                    {% endif %}
+                                </label>
+                                <input type="number" id="f{{ loop.index0 + clinical_features|length }}" name="{{ feat }}" step="any"
+                                    value="{{ defaults.get(feat, '') if defaults else '' }}"
+                                    placeholder="Leave empty if missing">
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Imaging Features -->
+                    <div class="section">
+                        <h2 class="section-title"><span class="icon">📋</span> X-Ray Imaging Signs</h2>
+                        <div class="feature-grid imaging-grid">
+                            {% for feat in imaging_features %}
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="f{{ loop.index0 + clinical_features|length + laboratory_features|length }}" name="{{ feat }}" value="1">
+                                <label for="f{{ loop.index0 + clinical_features|length + laboratory_features|length }}">
+                                    {% if labels.imaging and labels.imaging.get(feat) %}
+                                        {{ labels.imaging[feat] }}
+                                    {% else %}
+                                        {{ feat }}
+                                    {% endif %}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="action-bar">
+                        <button type="submit" class="btn-predict" id="predictBtn">
+                            <span class="btn-icon">▶</span> Predict
+                        </button>
+                        <button type="reset" class="btn-reset" id="resetBtn">
+                            <span class="btn-icon">↺</span> Reset
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="result-panel" id="resultPanel">
+                <div class="result-placeholder" id="resultPlaceholder">
+                    <div class="placeholder-icon">📊</div>
+                    <p>Enter patient data and click "Predict"</p>
+                    <p class="placeholder-sub">The model will predict NEC risk based on 29 multimodal features</p>
+                </div>
+                <div class="result-content" id="resultContent" style="display:none;">
+                    <h2 class="result-title">Prediction Result</h2>
+                    <div class="result-card" id="resultCard">
+                        <div class="prediction-badge" id="predictionBadge">
+                            <span class="pred-label" id="predLabel">NEC Positive</span>
+                        </div>
+                        <div class="probability-section">
+                            <div class="prob-bar-container">
+                                <div class="prob-bar-label">
+                                    <span>NEC Risk Probability</span>
+                                    <span class="prob-value" id="probValue">0.0%</span>
+                                </div>
+                                <div class="prob-bar-track">
+                                    <div class="prob-bar-fill" id="probBarFill" style="width:0%"></div>
+                                </div>
+                            </div>
+                            <div class="risk-level" id="riskLevel">
+                                <span class="risk-badge" id="riskBadge">Low Risk</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="shap-section">
+                        <h3>Top Contributing Features</h3>
+                        <div class="shap-list" id="shapList"></div>
+                    </div>
+                    <div class="action-note">
+                        <p>⚠️ This prediction is for clinical reference only and does not replace professional medical judgment.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const clinCount = {{ clinical_features|length }};
+        const labCount = {{ laboratory_features|length }};
+        const imgCount = {{ imaging_features|length }};
+        const totalFeats = clinCount + labCount + imgCount;
+
+        document.getElementById("predictionForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById("predictBtn");
+            btn.disabled = true;
+            btn.innerHTML = '<span class="btn-icon">⟳</span> Predicting...';
+
+            const data = {};
+
+            for (let i = 0; i < clinCount; i++) {
+                const el = document.getElementById("f" + i);
+                const val = el.value.trim();
+                data[el.name] = val === "" ? 0 : parseFloat(val);
+            }
+
+            for (let i = clinCount; i < clinCount + labCount; i++) {
+                const el = document.getElementById("f" + i);
+                const val = el.value.trim();
+                data[el.name] = val === "" ? null : parseFloat(val);
+            }
+
+            for (let i = clinCount + labCount; i < totalFeats; i++) {
+                const cb = document.getElementById("f" + i);
+                if (cb && cb.type === "checkbox") {
+                    data[cb.name] = cb.checked ? 1 : -1;
+                }
+            }
+
+            try {
+                const resp = await fetch("/predict", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify(data),
+                });
+                const result = await resp.json();
+
+                if (result.success) {
+                    document.getElementById("resultPlaceholder").style.display = "none";
+                    document.getElementById("resultContent").style.display = "block";
+
+                    const badge = document.getElementById("predictionBadge");
+                    document.getElementById("predLabel").textContent = result.prediction_label;
+                    badge.className = "prediction-badge " + (result.prediction === 1 ? "positive" : "negative");
+
+                    const probPct = (result.probability * 100).toFixed(1);
+                    document.getElementById("probValue").textContent = probPct + "%";
+                    document.getElementById("probBarFill").style.width = probPct + "%";
+                    document.getElementById("probBarFill").style.background = result.risk_color;
+
+                    const riskBadge = document.getElementById("riskBadge");
+                    riskBadge.textContent = result.risk_level;
+                    riskBadge.style.background = result.risk_color;
+
+                    const shapList = document.getElementById("shapList");
+                    shapList.innerHTML = "";
+                    const maxAbs = Math.max(...result.top_features.map(f => f.abs_value));
+                    result.top_features.forEach((feat, i) => {
+                        const direction = feat.value > 0 ? "Positive" : "Negative";
+                        const barWidth = Math.min(Math.abs(feat.value) / maxAbs * 100, 100);
+                        const barColor = feat.value > 0 ? "#dc3545" : "#28a745";
+                        shapList.innerHTML += '<div class="shap-item">' +
+                            '<span class="shap-rank">#' + (i+1) + '</span>' +
+                            '<span class="shap-name">' + feat.label + '</span>' +
+                            '<span class="shap-bar-container"><span class="shap-bar" style="width:' + barWidth + '%;background:' + barColor + '"></span></span>' +
+                            '<span class="shap-value">' + direction + '</span></div>';
+                    });
+                    document.getElementById("resultPanel").scrollIntoView({ behavior: "smooth" });
+                } else {
+                    alert("Prediction failed: " + (result.error || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Request failed: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="btn-icon">▶</span> Predict';
+            }
+        });
+
+        document.getElementById("resetBtn").addEventListener("click", function() {
+            document.getElementById("resultContent").style.display = "none";
+            document.getElementById("resultPlaceholder").style.display = "block";
+        });
+    </script>
+</body>
+</html>
