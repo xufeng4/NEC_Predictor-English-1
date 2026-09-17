@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEC Risk Prediction System</title>
+    <title>NEC Prognosis Prediction System</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
         <header>
             <div class="header-content">
-                <h1>Neonatal Necrotizing Enterocolitis Risk Prediction</h1>
+                <h1>Prognosis Prediction for Neonates with NEC</h1>
+                <a class="guide-link" href="/guide" target="_blank" rel="noopener">Website Guide →</a>
             </div>
         </header>
 
@@ -30,9 +31,7 @@
                                         {{ feat }}
                                     {% endif %}
                                 </label>
-                                <input type="number" id="f{{ loop.index0 }}" name="{{ feat }}" step="any"
-                                    value="{{ defaults.get(feat, '') if defaults else '' }}"
-                                    placeholder="Required">
+                                <input type="number" id="f{{ loop.index0 }}" name="{{ feat }}" step="any" required>
                             </div>
                             {% endfor %}
                         </div>
@@ -51,9 +50,7 @@
                                         {{ feat }}
                                     {% endif %}
                                 </label>
-                                <input type="number" id="f{{ loop.index0 + clinical_features|length }}" name="{{ feat }}" step="any"
-                                    value="{{ defaults.get(feat, '') if defaults else '' }}"
-                                    placeholder="Leave empty if missing">
+                                <input type="number" id="f{{ loop.index0 + clinical_features|length }}" name="{{ feat }}" step="any">
                             </div>
                             {% endfor %}
                         </div>
@@ -93,26 +90,23 @@
                 <div class="result-placeholder" id="resultPlaceholder">
                     <div class="placeholder-icon">📊</div>
                     <p>Enter patient data and click "Predict"</p>
-                    <p class="placeholder-sub">The model will predict NEC risk based on 29 multimodal features</p>
+                    <p class="placeholder-sub">The model estimates prognosis using 29 multimodal features</p>
                 </div>
                 <div class="result-content" id="resultContent" style="display:none;">
                     <h2 class="result-title">Prediction Result</h2>
                     <div class="result-card" id="resultCard">
                         <div class="prediction-badge" id="predictionBadge">
-                            <span class="pred-label" id="predLabel">NEC Positive</span>
+                            <span class="pred-label" id="predLabel">Prognosis prediction</span>
                         </div>
                         <div class="probability-section">
                             <div class="prob-bar-container">
                                 <div class="prob-bar-label">
-                                    <span>NEC Risk Probability</span>
+                                    <span>Predicted probability of adverse prognosis</span>
                                     <span class="prob-value" id="probValue">0.0%</span>
                                 </div>
                                 <div class="prob-bar-track">
                                     <div class="prob-bar-fill" id="probBarFill" style="width:0%"></div>
                                 </div>
-                            </div>
-                            <div class="risk-level" id="riskLevel">
-                                <span class="risk-badge" id="riskBadge">Low Risk</span>
                             </div>
                         </div>
                     </div>
@@ -121,7 +115,7 @@
                         <div class="shap-list" id="shapList"></div>
                     </div>
                     <div class="action-note">
-                        <p>⚠️ This prediction is for clinical reference only and does not replace professional medical judgment.</p>
+                        <p>⚠️ This prognostic estimate is for clinical reference in patients with NEC and does not replace professional medical judgment.</p>
                     </div>
                 </div>
             </div>
@@ -175,29 +169,30 @@
 
                     const badge = document.getElementById("predictionBadge");
                     document.getElementById("predLabel").textContent = result.prediction_label;
-                    badge.className = "prediction-badge " + (result.prediction === 1 ? "positive" : "negative");
+                    badge.className = "prediction-badge " + (result.prediction_adverse === 1 ? "adverse" : "benign");
 
-                    const probPct = (result.probability * 100).toFixed(1);
+                    const probPct = (result.probability_adverse * 100).toFixed(1);
                     document.getElementById("probValue").textContent = probPct + "%";
                     document.getElementById("probBarFill").style.width = probPct + "%";
-                    document.getElementById("probBarFill").style.background = result.risk_color;
-
-                    const riskBadge = document.getElementById("riskBadge");
-                    riskBadge.textContent = result.risk_level;
-                    riskBadge.style.background = result.risk_color;
+                    document.getElementById("probBarFill").style.background =
+                        result.prediction_adverse === 1 ? "#dc3545" : "#2563eb";
 
                     const shapList = document.getElementById("shapList");
                     shapList.innerHTML = "";
                     const maxAbs = Math.max(...result.top_features.map(f => f.abs_value));
                     result.top_features.forEach((feat, i) => {
-                        const direction = feat.value > 0 ? "Positive" : "Negative";
-                        const barWidth = Math.min(Math.abs(feat.value) / maxAbs * 100, 100);
-                        const barColor = feat.value > 0 ? "#dc3545" : "#28a745";
+                        const shapValue = feat.shap_toward_adverse;
+                        const direction = feat.direction;
+                        const barWidth = Math.min(Math.abs(shapValue) / maxAbs * 100, 100);
+                        const barColor = shapValue > 0 ? "#dc3545" : "#2563eb";
+                        const dirColor = shapValue > 0 ? "#dc3545" : "#2563eb";
+                        const featureText = feat.label;
+                        const shapTooltip = featureText + " | SHAP: " + shapValue.toFixed(3);
                         shapList.innerHTML += '<div class="shap-item">' +
                             '<span class="shap-rank">#' + (i+1) + '</span>' +
-                            '<span class="shap-name">' + feat.label + '</span>' +
-                            '<span class="shap-bar-container"><span class="shap-bar" style="width:' + barWidth + '%;background:' + barColor + '"></span></span>' +
-                            '<span class="shap-value">' + direction + '</span></div>';
+                            '<span class="shap-name" title="' + shapTooltip + '" style="color:' + dirColor + '">' + featureText + '</span>' +
+                            '<span class="shap-bar-container" title="' + shapTooltip + '"><span class="shap-bar" style="width:' + barWidth + '%;background:' + barColor + '"></span></span>' +
+                            '<span class="shap-value" style="color:' + dirColor + ';font-weight:600">' + direction + '</span></div>';
                     });
                     document.getElementById("resultPanel").scrollIntoView({ behavior: "smooth" });
                 } else {

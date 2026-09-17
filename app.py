@@ -51,18 +51,17 @@ IMG_LABELS = {
 }
 LABELS = {"clinical": CLINICAL_LABELS, "laboratory": LAB_LABELS, "imaging": IMG_LABELS}
 ALL_LABEL_DICTS = [CLINICAL_LABELS, LAB_LABELS, IMG_LABELS]
-DEFAULTS = {"出生体重（g）": 1800, "诊断年龄（天）": 15, "住院时长": 30,
-    "腺苷脱氨酶": 15, "丙氨酸氨基转移酶": 25, "天门冬氨酸氨基转移酶": 45,
-    "肌酸激酶": 100, "肌酐": 50, "间接胆红素": 85,
-    "总胆红素 tBil": 120, "平均血红蛋白浓度": 340, "血小板计数": 250}
-
 @app.route("/")
 def index():
     return render_template("index.html",
         clinical_features=feat_info["clinical"],
         laboratory_features=feat_info["laboratory"],
         imaging_features=feat_info["imaging"],
-        labels=LABELS, defaults=DEFAULTS)
+        labels=LABELS)
+
+@app.route("/guide")
+def guide():
+    return render_template("guide.html")
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -78,14 +77,27 @@ def predict():
         X = np.array(row, dtype=float).reshape(1, -1)
         pool = Pool(X)
 
-        prob = float(model.predict_proba(pool)[0, 1])
-        pred = int(model.predict(pool)[0])
+        # The source outcome is fixed as 1=benign prognosis and
+        # 0=adverse prognosis. CatBoost probability column 1 therefore
+        # represents P(benign), not the probability of an adverse outcome.
+        probability_benign = float(model.predict_proba(pool)[0, 1])
+        probability_adverse = 1.0 - probability_benign
+        prediction_adverse = int(probability_adverse >= 0.5)
 
         shap_raw = model.get_feature_importance(pool, type="ShapValues")
-        if len(shap_raw.shape) == 3:
-            shap_contrib = shap_raw[0, :n_feat, 1]
+        if shap_raw.ndim == 2:
+            shap_toward_benign = shap_raw[0, :n_feat]
+        elif shap_raw.ndim == 3 and shap_raw.shape[1] == 2:
+            shap_toward_benign = shap_raw[0, 1, :n_feat]
+        elif shap_raw.ndim == 3 and shap_raw.shape[2] == 2:
+            shap_toward_benign = shap_raw[0, :n_feat, 1]
         else:
-            shap_contrib = shap_raw[0, :n_feat]
+            raise ValueError(f"Unexpected SHAP output shape: {shap_raw.shape}")
+
+        # Reverse the class-1 (benign) SHAP values so that positive values
+        # consistently mean that the prediction is shifted toward an
+        # adverse prognosis, matching the manuscript and analysis outputs.
+        shap_contrib = -np.asarray(shap_toward_benign, dtype=float)
 
         top_idx = np.argsort(np.abs(shap_contrib))[::-1][:10]
         top_feats = []
@@ -98,22 +110,28 @@ def predict():
                     break
             top_feats.append({
                 "name": fname, "label": clabel,
-                "value": float(shap_contrib[idx]),
+                "actual_value": (
+                    float(X[0, idx]) if np.isfinite(X[0, idx]) else None
+                ),
+                "shap_toward_adverse": float(shap_contrib[idx]),
                 "abs_value": float(abs(shap_contrib[idx])),
+                "direction": (
+                    "Favors adverse prognosis" if shap_contrib[idx] > 0
+                    else "Favors benign prognosis" if shap_contrib[idx] < 0
+                    else "Neutral contribution"
+                ),
             })
 
-        if prob >= 0.7:
-            rl, rc = "High Risk", "#dc3545"
-        elif prob >= 0.4:
-            rl, rc = "Moderate Risk", "#ff8c00"
-        else:
-            rl, rc = "Low Risk", "#28a745"
-
         return jsonify({
-            "success": True, "probability": round(prob, 4),
-            "prediction": pred,
-            "prediction_label": "NEC Positive" if pred == 1 else "NEC Negative",
-            "risk_level": rl, "risk_color": rc,
+            "success": True,
+            "probability_adverse": round(probability_adverse, 4),
+            "probability_benign": round(probability_benign, 4),
+            "prediction_adverse": prediction_adverse,
+            "prediction_label": (
+                "Prediction favors adverse prognosis"
+                if prediction_adverse == 1
+                else "Prediction favors benign prognosis"
+            ),
             "top_features": top_feats,
         })
     except Exception as e:

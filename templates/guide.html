@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Guide | NEC Prognosis Prediction</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <main class="guide-page">
+        <header class="guide-header">
+            <div class="header-content">
+                <h1>Website Guide</h1>
+                <a class="back-link" href="/">← Return to prediction page</a>
+            </div>
+        </header>
+
+        <article class="guide-card">
+            <p class="guide-intro">
+                This website provides an interpretable prognosis estimate for neonates with
+                necrotizing enterocolitis (NEC). It is designed to support prognostic review
+                after NEC has been identified; it is not a tool for diagnosing whether a patient has NEC.
+            </p>
+
+            <section class="guide-section">
+                <h2>What the page does</h2>
+                <p>
+                    A CatBoost model combines 29 variables—3 clinical features, 9 laboratory
+                    features, and 17 structured abdominal X-ray signs—to estimate the probability
+                    that the model prediction favors an adverse prognosis.
+                </p>
+            </section>
+
+            <section class="guide-section">
+                <h2>How to use the page</h2>
+                <ol>
+                    <li>Enter the three required clinical values and all available laboratory results.</li>
+                    <li>Select only X-ray signs that are clearly present.</li>
+                    <li>Click <strong>Predict</strong> to view the predicted prognosis and adverse-prognosis probability.</li>
+                    <li>Review the feature-level SHAP explanation together with the patient's full clinical context.</li>
+                </ol>
+            </section>
+
+            <section class="guide-section">
+                <h2>Understanding the SHAP explanation</h2>
+                <ul>
+                    <li><span class="direction-adverse">Red / positive SHAP</span>: the feature shifts this individual prediction toward an adverse prognosis.</li>
+                    <li><span class="direction-benign">Blue / negative SHAP</span>: the feature shifts this individual prediction toward a benign prognosis.</li>
+                    <li>SHAP describes how the model used a feature for this prediction. It does not establish a causal or biological effect.</li>
+                </ul>
+            </section>
+
+            <section class="guide-section">
+                <h2>Important input notes</h2>
+                <ul>
+                    <li>Do not enter patient names, hospitalization numbers, or other identifiers; they are not model inputs.</li>
+                    <li>The current X-ray controls are binary: selected means clearly present (1), and unselected means clearly absent (−1).</li>
+                    <li>If an X-ray sign is uncertain or not reported, do not assume that an unselected box correctly represents the clinical record.</li>
+                </ul>
+            </section>
+
+            <section class="guide-section">
+                <h2>Scope and limitations</h2>
+                <p>
+                    The model was developed from a single-center cohort and requires further
+                    external and prospective validation. The probability is a model estimate,
+                    not a definitive clinical outcome. Interpret it alongside imaging, laboratory
+                    trends, treatment response, comorbidities, and professional clinical judgment.
+                </p>
+            </section>
+
+            <div class="guide-note">
+                For clinical reference and research use only. This website does not replace
+                diagnosis, treatment decisions, or assessment by qualified clinicians.
+            </div>
+        </article>
+    </main>
+</body>
+</html>

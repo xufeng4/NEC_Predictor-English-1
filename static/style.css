@@ -27,10 +27,127 @@ header {
     box-shadow: 0 4px 16px rgba(26, 58, 92, 0.2);
 }
 
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
 .header-content h1 {
     font-size: 24px;
     font-weight: 700;
     letter-spacing: 0.5px;
+}
+
+.guide-link {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    padding-bottom: 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.guide-link:hover,
+.guide-link:focus-visible {
+    color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+
+/* Website guide */
+.guide-page {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.guide-header {
+    padding: 24px 30px;
+    margin-bottom: 18px;
+}
+
+.guide-header .header-content {
+    align-items: baseline;
+}
+
+.back-link {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.guide-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 28px 32px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.guide-intro {
+    color: #34465a;
+    font-size: 14px;
+    margin-bottom: 22px;
+}
+
+.guide-section {
+    padding: 18px 0;
+    border-top: 1px solid #e8ecf0;
+}
+
+.guide-section h2 {
+    color: #1a3a5c;
+    font-size: 16px;
+    margin-bottom: 9px;
+}
+
+.guide-section p,
+.guide-section li {
+    color: #42546a;
+    font-size: 13px;
+}
+
+.guide-section ul,
+.guide-section ol {
+    padding-left: 20px;
+}
+
+.guide-section li + li {
+    margin-top: 5px;
+}
+
+.guide-note {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-left: 3px solid #d29a27;
+    background: #fff8e8;
+    color: #765816;
+    font-size: 13px;
+}
+
+.direction-adverse {
+    color: #c0392b;
+    font-weight: 600;
+}
+
+.direction-benign {
+    color: #2563eb;
+    font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    .header-content {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 9px;
+    }
+
+    .guide-card {
+        padding: 22px 20px;
+    }
 }
 
 .subtitle {
@@ -251,16 +368,16 @@ header {
     margin-bottom: 16px;
 }
 
-.prediction-badge.positive {
+.prediction-badge.adverse {
     background: #fde8e8;
     color: #c0392b;
     border: 1px solid #f5c6cb;
 }
 
-.prediction-badge.negative {
-    background: #e8f5e9;
-    color: #27ae60;
-    border: 1px solid #c3e6cb;
+.prediction-badge.benign {
+    background: #e8f1fb;
+    color: #2563eb;
+    border: 1px solid #bfd6f6;
 }
 
 .prob-bar-container {
@@ -293,20 +410,6 @@ header {
     transition: width 0.6s ease;
 }
 
-.risk-level {
-    text-align: center;
-    margin-top: 8px;
-}
-
-.risk-badge {
-    display: inline-block;
-    padding: 6px 20px;
-    border-radius: 20px;
-    color: white;
-    font-weight: 600;
-    font-size: 14px;
-}
-
 /* SHAP Section */
 .shap-section h3 {
     font-size: 14px;
@@ -323,7 +426,7 @@ header {
 
 .shap-item {
     display: grid;
-    grid-template-columns: 28px 1fr 80px 40px;
+    grid-template-columns: 28px minmax(150px, 1fr) 80px 150px;
     align-items: center;
     gap: 6px;
     font-size: 12px;
@@ -352,7 +455,9 @@ header {
 }
 
 .shap-bar {
+    display: block;
     height: 100%;
+    min-width: 2px;
     border-radius: 4px;
     transition: width 0.4s ease;
 }
