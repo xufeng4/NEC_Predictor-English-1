@@ -12,7 +12,7 @@ body {
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
     padding: 20px;
 }
@@ -170,7 +170,7 @@ header {
 /* Main Layout */
 .main-layout {
     display: grid;
-    grid-template-columns: 1fr 380px;
+    grid-template-columns: minmax(0, 1fr) 500px;
     gap: 24px;
     align-items: start;
 }
@@ -466,6 +466,9 @@ header {
     font-size: 11px;
     color: #6b7a8d;
     text-align: right;
+    white-space: normal;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
 }
 
 .action-note {
@@ -478,7 +481,7 @@ header {
 }
 
 /* Responsive */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
     .main-layout {
         grid-template-columns: 1fr;
     }
